@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Encoder Base</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--surface-color);
+            border-radius: 16px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        select, input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+            appearance: none;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .button {
+            width: 100%;
+            padding: 0.875rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .button:active {
+            transform: scale(0.98);
+        }
+
+        .button:disabled {
+            background-color: var(--border-color);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .status.error {
+            display: block;
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error-color);
+            color: #fca5a5;
+        }
+
+        .status.success {
+            display: block;
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success-color);
+            color: #6ee7b7;
+        }
+
+        pre {
+            background: rgba(0,0,0,0.3);
+            padding: 0.5rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Video Encoder Server</h1>
+        
+        <div class="form-group">
+            <label for="fileSelect">Select Input File (from Server)</label>
+            <select id="fileSelect">
+                <!-- Populated by JS -->
+                <option value="">Loading files...</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="codecSelect">Video Codec</label>
+            <select id="codecSelect">
+                <option value="libx264">H.264 (libx264)</option>
+                <option value="libx265">HEVC/H.265 (libx265)</option>
+                <option value="libvpx-vp9">VP9 (libvpx-vp9)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="crfInput">CRF (Constant Rate Factor - Quality)</label>
+            <input type="number" id="crfInput" value="23" min="0" max="51">
+        </div>
+
+        <div class="form-group">
+            <label for="presetSelect">Preset (Encoding Speed)</label>
+            <select id="presetSelect">
+                <option value="ultrafast">Ultrafast</option>
+                <option value="superfast">Superfast</option>
+                <option value="veryfast">Veryfast</option>
+                <option value="faster">Faster</option>
+                <option value="fast">Fast</option>
+                <option value="medium" selected>Medium</option>
+                <option value="slow">Slow</option>
+                <option value="slower">Slower</option>
+                <option value="veryslow">Veryslow</option>
+            </select>
+        </div>
+
+        <button id="encodeBtn" class="button">Start Encoding</button>
+
+        <div id="statusMessage" class="status"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileSelect = document.getElementById('fileSelect');
+            const codecSelect = document.getElementById('codecSelect');
+            const crfInput = document.getElementById('crfInput');
+            const presetSelect = document.getElementById('presetSelect');
+            const encodeBtn = document.getElementById('encodeBtn');
+            const statusMessage = document.getElementById('statusMessage');
+
+            // Fetch files
+            fetch('/api/files')
+                .then(response => response.json())
+                .then(data => {
+                    fileSelect.innerHTML = ''; // clear
+                    if (data.error) {
+                        showStatus(data.error, 'error');
+                        return;
+                    }
+                    if (data.files.length === 0) {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = 'No files found in input folder';
+                        fileSelect.appendChild(option);
+                        encodeBtn.disabled = true;
+                    } else {
+                        data.files.forEach(file => {
+                            const option = document.createElement('option');
+                            option.value = file;
+                            option.textContent = file;
+                            fileSelect.appendChild(option);
+                        });
+                        encodeBtn.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    fileSelect.innerHTML = '<option value="">Error loading files</option>';
+                    showStatus('Failed to load files from server.', 'error');
+                    encodeBtn.disabled = true;
+                });
+
+            // Start encode action
+            encodeBtn.addEventListener('click', () => {
+                const filename = fileSelect.value;
+                if (!filename) {
+                    showStatus('Please select a file.', 'error');
+                    return;
+                }
+
+                encodeBtn.disabled = true;
+                encodeBtn.textContent = 'Starting...';
+                statusMessage.className = 'status';
+
+                const payload = {
+                    filename: filename,
+                    codec: codecSelect.value,
+                    crf: crfInput.value,
+                    preset: presetSelect.value
+                };
+
+                fetch('/api/encode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showStatus(data.error, 'error');
+                        encodeBtn.disabled = false;
+                        encodeBtn.textContent = 'Start Encoding';
+                    } else {
+                        statusMessage.className = 'status success';
+                        statusMessage.innerHTML = `
+                            <strong>Success!</strong> ${data.message}<br>
+                            Output file: <em>${data.output_file}</em><br>
+                            <pre>${data.command}</pre>
+                        `;
+                        // Reset button
+                        setTimeout(() => {
+                            encodeBtn.disabled = false;
+                            encodeBtn.textContent = 'Start Encoding';
+                        }, 2000);
+                    }
+                })
+                .catch(err => {
+                    showStatus('An error occurred reaching the API.', 'error');
+                    encodeBtn.disabled = false;
+                    encodeBtn.textContent = 'Start Encoding';
+                });
+            });
+
+            function showStatus(text, type) {
+                statusMessage.textContent = text;
+                statusMessage.className = 'status ' + type;
+            }
+        });
+    </script>
+</body>
+</html>
